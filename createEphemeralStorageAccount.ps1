@@ -1,37 +1,42 @@
-function Create-EphemeralStorageAccount
-(
-    [Parameter(Mandatory=$true)]
-    [String]
-    $automationAccountName
-)
+try
 {
-    $location = Get-AzureAutomationVariable `
-        -AutomationAccountName $automationAccountName `
-        -Name 'location'
+    $servicePrincipalConnection = Get-AutomationConnection -Name 'AzureRunAsConnection'
 
-    $resourceGroupName = Get-AzureAutomationVariable `
-        -AutomationAccountName $automationAccountName `
-        -Name 'resourceGroupName'
+    Add-AzureRmAccount `
+        -ServicePrincipal `
+        -TenantId $servicePrincipalConnection.TenantId `
+        -ApplicationId $servicePrincipalConnection.ApplicationId `
+        -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint
 
-    $subscriptionId = Get-AzureAutomationVariable `
-        -AutomationAccountName $automationAccountName `
-        -Name 'subscriptionId'
-
-    $storageAccountName = 'datadrop{0:yyyyMMddhhmmss}' `
-        -f [System.DateTime]::UtcNow
-
-    Get-AzureRmSubscription -SubscriptionId $subscriptionId | Select-AzureRmSubscription
-
-    $storageAccount = New-AzureRmStorageAccount `
-        -AccessTier Hot `
-        -Kind BlobStorage `
-        -Location $location `
-        -Name $storageAccountName `
-        -ResourceGroupName $resourceGroupName `
-        -SkuName Standard_LRS
-
-    Write-Output –InputObject $storageAccount
+    Write-Output "Successfully logged in to Azure." 
+}
+catch
+{
+    if (!$servicePrincipalConnection) 
+    { 
+        $ErrorMessage = "Connection $connectionName not found." 
+        throw $ErrorMessage 
+    }  
+    else 
+    { 
+        Write-Error -Message $_.Exception 
+        throw $_.Exception 
+    } 
 }
 
-Create-EphemeralStorageAccount `
-    -automationAccountName vmsetup
+Select-AzureRmSubscription -SubscriptionId $servicePrincipalConnection.SubscriptionID
+
+$location = Get-AutomationVariable -Name 'location'
+$resourceGroupName = Get-AutomationVariable -Name 'resourceGroupName'
+
+$storageAccountName = 'datadrop{0:yyyyMMddhhmmss}' -f [System.DateTime]::UtcNow
+
+$storageAccount = New-AzureRmStorageAccount `
+    -AccessTier Hot `
+    -Kind BlobStorage `
+    -Location $location `
+    -Name $storageAccountName `
+    -ResourceGroupName $resourceGroupName `
+    -SkuName Standard_LRS
+
+Write-Output -InputObject $storageAccount.Name

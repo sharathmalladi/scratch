@@ -1,6 +1,3 @@
-Workflow CreateEphemeralStorageAccount
-{
-
    Param
     (
         [OutputType([string])]
@@ -61,5 +58,3 @@ Workflow CreateEphemeralStorageAccount
     }
 
     Write-Output $storageOutput
-
-}
